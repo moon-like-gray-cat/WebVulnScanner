@@ -1,0 +1,27 @@
+# 扫描器指纹规则库
+- name: SpringBoot
+  headers:
+    X-Application-Context: ".*"
+  body:
+    - "Whitelabel Error Page"
+    - "timestamp"
+    - "status"
+    - "error"
+
+- name: ThinkPHP
+  headers:
+    X-Powered-By: "ThinkPHP"
+  body:
+    - "ThinkPHP"
+    - "十年磨一剑"
+
+- name: Shiro
+  headers:
+    Set-Cookie: "rememberMe=deleteMe"
+  body: []
+
+- name: PHP
+  headers:
+    X-Powered-By: "PHP"
+  body:
+    - "phpinfo"
