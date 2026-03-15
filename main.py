@@ -5,58 +5,33 @@ from loguru import logger
 from core.engine import ScanEngine
 import config
 from utils.reporter import MarkdownReporter
+from utils.logger import setup_logger
 
-# 启动 Logo
+# 1. 全局初始化日志（只需一次，放在最上方）
+setup_logger()
+
+# 极简 Banner
 BANNER = r"""
-<red>
-       ____
-      /    \      <white>_______________________________</white>
-     /      \    <white>/                               \</white>
-    |  O  O  |   <white>|  Everything is Fine.         |</white>
-    |   /\   |  <cyan><- </cyan><white>|  (Just scanning for vulns)   |</white>
-    \        /    <white>\_______________________________/</white>
-     \______/
-        ||
-      __||__
-     /      \
-    /________\
-    |        |
-    |  TEA   |   <yellow>~~~~</yellow>
-    |________|
-<red>
-~~~~~ ~~~~~ ~~~~~ ~~~~~ ~~~~~ ~~~~~ ~~~~~ 
-  (Fire) (Fire) (Fire) (Fire) (Fire)
-<white>
------------------------------------------------
-   <yellow>WebPulse v1.1 - "Chaos Engineering" Edition</yellow>
------------------------------------------------
-</white>
+[ WebVulnScanner ]----------------------------------------------------
+| Status: Active   | Engine: Async     | Dev: Moon-Like-Gray-Cat      |
+-----------------------------------------------------------------------
 """
 
-def setup_logger():
-    """配置 Loguru 日志格式"""
-    logger.remove()  # 移除默认配置
-    logger.add(
-        sys.stdout,
-        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{message}</cyan>",
-        level="INFO"
-    )
-
 async def main():
-    # 1. 打印 Logo
+    # 2. 打印 Logo
     print(BANNER)
-    setup_logger()
 
-    # 2. 参数解析
-    parser = argparse.ArgumentParser(description="WebPulse: A high-performance web vulnerability scanner.")
+    # 3. 参数解析
+    parser = argparse.ArgumentParser(description="WebVulnScanner: High-performance vulnerability scanner.")
     parser.add_argument("-u", "--url", help="Target URL (e.g., http://example.com)")
     parser.add_argument("-f", "--file", help="File containing target URLs")
-    parser.add_argument("-c", "--concurrency", type=int, default=20, help="Max concurrency (default: 20)")
-    parser.add_argument("-t", "--timeout", type=int, default=10, help="Request timeout (default: 10)")
+    # 增加默认值关联 config.py，这样用户不输入时才用配置文件的值
+    parser.add_argument("-c", "--concurrency", type=int, default=config.CONCURRENCY, help="Max concurrency")
+    parser.add_argument("-t", "--timeout", type=int, default=config.TIMEOUT, help="Request timeout")
 
     args = parser.parse_args()
 
-    # 3. 处理目标
+    # 4. 处理目标
     targets = []
     if args.url:
         targets.append(args.url)
@@ -71,23 +46,28 @@ async def main():
         parser.print_help()
         return
 
-    # 4. 启动引擎
-    # engine = ScanEngine(urls=targets, concurrency=args.concurrency, timeout=args.timeout)
-    # 使用配置项
+    logger.info(f"任务启动 | 目标总数: {len(targets)} | 并发数: {args.concurrency}")
+
+    # 5. 启动引擎 (使用解析后的 args，灵活性更高)
     engine = ScanEngine(
         urls=targets,
-        concurrency=config.CONCURRENCY,
-        timeout=config.TIMEOUT
+        concurrency=args.concurrency,
+        timeout=args.timeout
     )
     results = await engine.run()
 
-    # 5. 扫描结束总结
-    reporter = MarkdownReporter()
-    reporter.generate(results)
+    # 6. 扫描结束总结
+    if results:
+        reporter = MarkdownReporter()
+        report_path = reporter.generate(results)
+        logger.success(f"扫描完成！发现 {len(results)} 个漏洞。报告已生成: {report_path}")
+    else:
+        logger.info("扫描完成，未发现安全漏洞。")
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.warning("\n用户强制退出扫描。")
+        # 这里用 print 更干净，因为此时可能已经不需要日志格式了
+        print("\n[!] 用户强制退出扫描。")
         sys.exit(0)
