@@ -3,8 +3,10 @@ import sys
 import argparse
 from loguru import logger
 from core.engine import ScanEngine
+import config
+from utils.reporter import MarkdownReporter
 
-# 炫酷的启动 Logo
+# 启动 Logo
 BANNER = r"""
 <red>
        ____
@@ -70,16 +72,18 @@ async def main():
         return
 
     # 4. 启动引擎
-    engine = ScanEngine(urls=targets, concurrency=args.concurrency, timeout=args.timeout)
+    # engine = ScanEngine(urls=targets, concurrency=args.concurrency, timeout=args.timeout)
+    # 使用配置项
+    engine = ScanEngine(
+        urls=targets,
+        concurrency=config.CONCURRENCY,
+        timeout=config.TIMEOUT
+    )
     results = await engine.run()
 
     # 5. 扫描结束总结
-    if results:
-        logger.success(f"扫描报告已生成，共发现 {len(results)} 个风险点。")
-        for res in results:
-            print(f"[{res['severity']}] {res['url']} -> {res['poc_name']}")
-    else:
-        logger.info("未发现已知漏洞。")
+    reporter = MarkdownReporter()
+    reporter.generate(results)
 
 if __name__ == "__main__":
     try:
